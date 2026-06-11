@@ -1,9 +1,15 @@
 import uuid
 
-from langchain_google_genai import (
-    GoogleGenerativeAIEmbeddings,
-    ChatGoogleGenerativeAI
+
+from langchain_huggingface import (
+    HuggingFaceEmbeddings
 )
+
+
+from langchain_groq import (
+    ChatGroq
+)
+
 
 from qdrant_client.models import (
     PointStruct,
@@ -11,45 +17,74 @@ from qdrant_client.models import (
     Distance
 )
 
-from app.database.qdrant import qdrant_client
-from app.core.config import settings
 
-
-embeddings = GoogleGenerativeAIEmbeddings(
-    model="models/gemini-embedding-001",
-    google_api_key=settings.GEMINI_API_KEY
+from app.database.qdrant import (
+    qdrant_client
 )
+
+
+from app.core.config import (
+    settings
+)
+
+
+
+embeddings = HuggingFaceEmbeddings(
+
+    model_name=
+    "sentence-transformers/paraphrase-MiniLM-L3-v2"
+)
+
 
 
 def store_embeddings(chunks):
 
+
     collection_name = settings.QDRANT_COLLECTION_NAME
 
+
     existing_collections = [
+
         collection.name
 
         for collection in
-        qdrant_client.get_collections().collections
+
+        qdrant_client
+        .get_collections()
+        .collections
     ]
 
 
-    if collection_name not in existing_collections:
+    if collection_name in existing_collections:
 
-        qdrant_client.create_collection(
 
-            collection_name=collection_name,
+        qdrant_client.delete_collection(
 
-            vectors_config=VectorParams(
-                size=3072,
-                distance=Distance.COSINE
-            )
+            collection_name=
+            collection_name
         )
+
+
+    qdrant_client.create_collection(
+
+        collection_name=
+        collection_name,
+
+
+        vectors_config=VectorParams(
+
+            size=384,
+
+            distance=Distance.COSINE
+        )
+    )
 
 
     points = []
 
 
     for chunk in chunks:
+
 
         vector = embeddings.embed_query(
             chunk
@@ -62,9 +97,12 @@ def store_embeddings(chunks):
 
                 id=str(uuid.uuid4()),
 
+
                 vector=vector,
 
+
                 payload={
+
                     "text": chunk
                 }
             )
@@ -73,16 +111,23 @@ def store_embeddings(chunks):
 
     qdrant_client.upsert(
 
-        collection_name=collection_name,
+        collection_name=
+        collection_name,
 
-        points=points
+
+        points=
+        points
     )
 
 
     return len(points)
 
 
+
+
+
 def ask_question(question):
+
 
     question_vector = embeddings.embed_query(
         question
@@ -91,11 +136,15 @@ def ask_question(question):
 
     search_result = qdrant_client.query_points(
 
-        collection_name=settings.QDRANT_COLLECTION_NAME,
+        collection_name=
+        settings.QDRANT_COLLECTION_NAME,
 
-        query=question_vector,
 
-        limit=3
+        query=
+        question_vector,
+
+
+        limit=10
     )
 
 
@@ -104,34 +153,57 @@ def ask_question(question):
 
     for point in search_result.points:
 
+
         context += (
+
             point.payload["text"]
+
             +
+
             "\n"
         )
 
 
-    llm = ChatGoogleGenerativeAI(
+    llm = ChatGroq(
 
-        model="gemini-2.5-flash",
+        model=
+        "llama-3.1-8b-instant",
 
-        google_api_key=settings.GEMINI_API_KEY
+
+        api_key=
+        settings.GROQ_API_KEY
     )
 
 
     prompt = f"""
-You are QueryDocs AI assistant.
 
-Answer the user's question using only the document context.
+You are QueryDocs, an AI assistant that answers questions about uploaded documents.
 
-If the answer is not present in the document,
-say "I could not find this information in the document."
+Use the provided document content to answer the user.
 
-DOCUMENT CONTEXT:
+Instructions:
+
+- Understand the user's question.
+- If asked to summarize, summarize the document.
+- Extract relevant details from the document.
+- Answer naturally.
+- Do not mention chunks, embeddings, or database.
+- If the information is not present, say:
+"I could not find this information in the document."
+
+
+DOCUMENT:
+
 {context}
 
-USER QUESTION:
+
+QUESTION:
+
 {question}
+
+
+ANSWER:
+
 """
 
 
