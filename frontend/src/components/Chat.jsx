@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import api from "../api";
 import ChatInput from "./ChatInput";
+import ReactMarkdown from "react-markdown";
 
 const DocIcon = ({ size = 14 }) => (
   <svg
@@ -187,7 +188,7 @@ export default function Chat() {
                     <p style={{ fontSize: 12, color: "#6b7280", margin: 0 }}>PDF uploaded</p>
                   </div>
                 ) : (
-                  <p style={{ margin: 0 }}>{m.text}</p>
+                  <ReactMarkdown>{m.text}</ReactMarkdown>
                 )}
               </div>
             </div>
