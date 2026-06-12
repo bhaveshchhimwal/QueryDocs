@@ -3,7 +3,7 @@ import axios from "axios";
 
 const BASE_URL = import.meta.env.PROD
 
-    ? "https://querydocs-backend.onrender.com"
+    ? "https://querydocs.onrender.com"
 
     : "http://127.0.0.1:8000";
 

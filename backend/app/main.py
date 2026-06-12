@@ -5,27 +5,18 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.routes import upload, chat
 
 
-
 app = FastAPI(
-
     title="QueryDocs API"
-
 )
-
 
 
 origins = [
 
-    # local React
     "http://localhost:5173",
-    "http://127.0.0.1:5173",
 
-
-    # Render frontend
-    "https://querydocs-frontend.onrender.com"
+    "https://querydocs-1.onrender.com"
 
 ]
-
 
 
 app.add_middleware(
@@ -39,35 +30,18 @@ app.add_middleware(
     allow_credentials=True,
 
 
-    allow_methods=[
-
-        "*"
-
-    ],
+    allow_methods=["*"],
 
 
-    allow_headers=[
-
-        "*"
-
-    ],
+    allow_headers=["*"],
 
 )
 
 
 
-app.include_router(
+app.include_router(upload.router)
 
-    upload.router
-
-)
-
-
-app.include_router(
-
-    chat.router
-
-)
+app.include_router(chat.router)
 
 
 
