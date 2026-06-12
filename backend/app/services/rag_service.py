@@ -1,14 +1,5 @@
 import uuid
-
-
-from langchain_huggingface import (
-    HuggingFaceEmbeddings
-)
-
-
-from langchain_groq import (
-    ChatGroq
-)
+import requests
 
 
 from qdrant_client.models import (
@@ -18,57 +9,142 @@ from qdrant_client.models import (
 )
 
 
-from app.database.qdrant import (
-    qdrant_client
+from langchain_groq import ChatGroq
+
+
+from app.database.qdrant import qdrant_client
+
+from app.core.config import settings
+
+
+
+# HuggingFace Inference API
+HF_URL = (
+
+    "https://router.huggingface.co/hf-inference/"
+    "models/sentence-transformers/all-MiniLM-L6-v2/"
+    "pipeline/feature-extraction"
+
 )
 
 
-from app.core.config import (
-    settings
-)
+
+headers = {
+
+    "Authorization":
+    f"Bearer {settings.HUGGINGFACE_API_KEY}"
+
+}
 
 
 
-embeddings = HuggingFaceEmbeddings(
 
-    model_name=
-    "sentence-transformers/paraphrase-MiniLM-L3-v2"
-)
+
+def get_embedding(text):
+
+
+    response = requests.post(
+
+        HF_URL,
+
+
+        headers=headers,
+
+
+        json={
+
+            "inputs": text
+
+        },
+
+
+        timeout=60
+
+    )
+
+
+
+    response.raise_for_status()
+
+
+
+    embedding = response.json()
+
+
+
+    # HF sometimes returns [[vector]]
+    # convert to [vector]
+    if (
+
+        isinstance(embedding, list)
+
+        and
+
+        len(embedding) > 0
+
+        and
+
+        isinstance(embedding[0], list)
+
+    ):
+
+
+        embedding = embedding[0]
+
+
+
+    return embedding
+
+
+
+
+
 
 
 
 def store_embeddings(chunks):
 
 
-    collection_name = settings.QDRANT_COLLECTION_NAME
+    collection = (
+
+        settings.QDRANT_COLLECTION_NAME
+
+    )
 
 
-    existing_collections = [
 
-        collection.name
+    existing = [
 
-        for collection in
+        c.name
+
+        for c in
 
         qdrant_client
         .get_collections()
         .collections
+
     ]
 
 
-    if collection_name in existing_collections:
+
+
+    # remove previous pdf vectors
+    if collection in existing:
 
 
         qdrant_client.delete_collection(
 
-            collection_name=
-            collection_name
+            collection_name=collection
+
         )
+
+
 
 
     qdrant_client.create_collection(
 
-        collection_name=
-        collection_name,
+
+        collection_name=collection,
 
 
         vectors_config=VectorParams(
@@ -76,19 +152,31 @@ def store_embeddings(chunks):
             size=384,
 
             distance=Distance.COSINE
+
         )
+
     )
+
+
+
 
 
     points = []
 
 
+
+
     for chunk in chunks:
 
 
-        vector = embeddings.embed_query(
+
+        vector = get_embedding(
+
             chunk
+
         )
+
+
 
 
         points.append(
@@ -104,20 +192,28 @@ def store_embeddings(chunks):
                 payload={
 
                     "text": chunk
+
                 }
+
             )
+
         )
+
+
+
 
 
     qdrant_client.upsert(
 
-        collection_name=
-        collection_name,
+
+        collection_name=collection,
 
 
-        points=
-        points
+        points=points
+
     )
+
+
 
 
     return len(points)
@@ -126,32 +222,50 @@ def store_embeddings(chunks):
 
 
 
+
+
+
+
 def ask_question(question):
 
 
-    question_vector = embeddings.embed_query(
+
+    question_vector = get_embedding(
+
         question
+
     )
 
 
-    search_result = qdrant_client.query_points(
+
+
+    result = qdrant_client.query_points(
+
 
         collection_name=
         settings.QDRANT_COLLECTION_NAME,
+
 
 
         query=
         question_vector,
 
 
-        limit=10
+
+        limit=5
+
     )
+
+
+
 
 
     context = ""
 
 
-    for point in search_result.points:
+
+
+    for point in result.points:
 
 
         context += (
@@ -161,34 +275,38 @@ def ask_question(question):
             +
 
             "\n"
+
         )
+
+
+
+
 
 
     llm = ChatGroq(
 
-        model=
-        "llama-3.1-8b-instant",
+
+        model="llama-3.1-8b-instant",
 
 
-        api_key=
-        settings.GROQ_API_KEY
+        api_key=settings.GROQ_API_KEY
+
     )
+
+
+
 
 
     prompt = f"""
 
-You are QueryDocs, an AI assistant that answers questions about uploaded documents.
+You are QueryDocs AI assistant.
 
-Use the provided document content to answer the user.
+Use ONLY the uploaded document context.
 
-Instructions:
-
-- Understand the user's question.
-- If asked to summarize, summarize the document.
-- Extract relevant details from the document.
-- Answer naturally.
-- Do not mention chunks, embeddings, or database.
-- If the information is not present, say:
+Rules:
+- Answer questions from the document.
+- If user asks for summary, summarize the document.
+- If information is missing, say:
 "I could not find this information in the document."
 
 
@@ -201,15 +319,19 @@ QUESTION:
 
 {question}
 
-
-ANSWER:
-
 """
 
 
+
+
+
     response = llm.invoke(
+
         prompt
+
     )
+
+
 
 
     return response.content

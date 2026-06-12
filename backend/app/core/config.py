@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 
+
 class Settings:
 
 
@@ -17,6 +18,11 @@ class Settings:
 
     GROQ_API_KEY = os.getenv(
         "GROQ_API_KEY"
+    )
+
+
+    HUGGINGFACE_API_KEY = os.getenv(
+        "HUGGINGFACE_API_KEY"
     )
 
 
@@ -49,6 +55,7 @@ class Settings:
     CLOUDINARY_API_SECRET = os.getenv(
         "CLOUDINARY_API_SECRET"
     )
+
 
 
 settings = Settings()
