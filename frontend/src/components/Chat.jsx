@@ -23,6 +23,7 @@ export default function Chat() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const bottomRef = useRef(null);
 
   useEffect(() => {
@@ -40,6 +41,7 @@ export default function Chat() {
 
     const data = new FormData();
     data.append("file", file);
+    setUploading(true);
 
     try {
       await api.post("/pdf/upload", data);
@@ -56,6 +58,8 @@ export default function Chat() {
         ...p,
         { role: "ai", type: "text", text: "Failed to upload PDF. Please try again." },
       ]);
+    } finally {
+      setUploading(false);
     }
   };
 
@@ -84,7 +88,6 @@ export default function Chat() {
 
   return (
     <div style={{ flex: 1, display: "flex", flexDirection: "column", minHeight: 0 }}>
-      {/* Scrollable messages */}
       <div style={{ flex: 1, overflowY: "auto", padding: "24px 16px 16px" }}>
         {messages.length === 0 && (
           <div
@@ -190,7 +193,7 @@ export default function Chat() {
             </div>
           ))}
 
-          {loading && (
+          {(loading || uploading) && (
             <div style={{ display: "flex", justifyContent: "flex-start", alignItems: "flex-start" }}>
               <div
                 style={{
@@ -240,13 +243,12 @@ export default function Chat() {
         </div>
       </div>
 
-      {/* Input — part of normal flow, not fixed */}
       <ChatInput
         question={question}
         setQuestion={setQuestion}
         send={send}
         upload={upload}
-        loading={loading}
+        loading={loading || uploading}
       />
 
       <style>{`
