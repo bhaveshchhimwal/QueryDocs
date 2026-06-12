@@ -1,25 +1,14 @@
+
 from fastapi import FastAPI
 
+from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi.middleware.cors import (
-    CORSMiddleware
-)
-
-
-from app.routes import (
-    upload,
-    chat
-)
-
+from app.routes import upload, chat
 
 
 app = FastAPI(
-
-    title="QueryDocs API",
-
-    description="AI powered PDF question answering system"
+    title="QueryDocs API"
 )
-
 
 
 app.add_middleware(
@@ -38,19 +27,14 @@ app.add_middleware(
 
     allow_headers=[
         "*"
-    ]
+    ],
+
 )
 
 
+app.include_router(upload.router)
 
-app.include_router(
-    upload.router
-)
-
-
-app.include_router(
-    chat.router
-)
+app.include_router(chat.router)
 
 
 
@@ -58,8 +42,5 @@ app.include_router(
 def home():
 
     return {
-
-        "project": "QueryDocs",
-
-        "status": "Backend running 🚀"
+        "status":"QueryDocs running 🚀"
     }
