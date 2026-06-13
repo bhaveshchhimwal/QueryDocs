@@ -25,8 +25,8 @@ headers = {
 
 FULL_TEXT_THRESHOLD = 15_000
 MEDIUM_THRESHOLD = 150_000
-RAG_MEDIUM_LIMIT = 25
-RAG_LARGE_LIMIT = 15
+RAG_MEDIUM_LIMIT = 10   
+RAG_LARGE_LIMIT = 8     
 
 # in-memory store for current PDF text
 current_pdf_text = None
