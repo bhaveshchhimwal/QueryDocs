@@ -46,7 +46,11 @@ def get_embedding(text):
     return embedding
 
 
-def store_embeddings(chunks, full_text):
+def store_embeddings(chunks):
+
+    if not chunks:
+        raise ValueError("No chunks to embed.")
+
     collection = settings.QDRANT_COLLECTION_NAME
 
     existing = [
@@ -76,17 +80,16 @@ def store_embeddings(chunks, full_text):
             PointStruct(
                 id=str(uuid.uuid4()),
                 vector=vector,
-                payload={
-                    "text": chunk,
-                    "full_text": full_text
-                }
+                payload={"text": chunk}
             )
         )
 
-    qdrant_client.upsert(
-        collection_name=collection,
-        points=points
-    )
+    BATCH_SIZE = 50
+    for i in range(0, len(points), BATCH_SIZE):
+        qdrant_client.upsert(
+            collection_name=collection,
+            points=points[i:i + BATCH_SIZE]
+        )
 
     return len(points)
 
@@ -100,14 +103,9 @@ def ask_question(question):
         limit=10
     )
 
-    full_text = result.points[0].payload.get("full_text", "")
-
-    if len(full_text) <= 40000:
-        context = full_text
-    else:
-        context = ""
-        for point in result.points:
-            context += point.payload["text"] + "\n"
+    context = ""
+    for point in result.points:
+        context += point.payload["text"] + "\n"
 
     llm = ChatGroq(
         model="llama-3.1-8b-instant",
@@ -134,5 +132,4 @@ QUESTION:
 """
 
     response = llm.invoke(prompt)
-
     return response.content

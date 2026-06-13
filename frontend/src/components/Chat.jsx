@@ -45,7 +45,16 @@ export default function Chat() {
     setUploading(true);
 
     try {
-      await api.post("/pdf/upload", data);
+      const res = await api.post("/pdf/upload", data);
+
+      if (res.data.error) {
+        setMessages((p) => [
+          ...p,
+          { role: "ai", type: "text", text: `⚠️ ${res.data.error}` },
+        ]);
+        return;
+      }
+
       setMessages((p) => [
         ...p,
         {
@@ -54,10 +63,13 @@ export default function Chat() {
           text: "Your PDF has been processed and is ready. Ask me anything about it!",
         },
       ]);
-    } catch {
+    } catch (err) {
+      const errMsg =
+        err?.response?.data?.error ||
+        "Failed to upload PDF. Please try again.";
       setMessages((p) => [
         ...p,
-        { role: "ai", type: "text", text: "Failed to upload PDF. Please try again." },
+        { role: "ai", type: "text", text: `⚠️ ${errMsg}` },
       ]);
     } finally {
       setUploading(false);
@@ -257,6 +269,14 @@ export default function Chat() {
           0%, 80%, 100% { transform: translateY(0); }
           40% { transform: translateY(-5px); }
         }
+        .prose { color: inherit; }
+        .prose p { margin: 0 0 8px 0; }
+        .prose p:last-child { margin: 0; }
+        .prose ul, .prose ol { margin: 4px 0 8px 16px; padding: 0; }
+        .prose li { margin-bottom: 2px; }
+        .prose code { background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 4px; font-size: 13px; }
+        .prose pre { background: rgba(255,255,255,0.05); padding: 10px; border-radius: 8px; overflow-x: auto; }
+        .prose strong { color: inherit; }
       `}</style>
     </div>
   );
