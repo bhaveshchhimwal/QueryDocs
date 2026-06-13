@@ -23,6 +23,14 @@ headers = {
     f"Bearer {settings.HUGGINGFACE_API_KEY}"
 }
 
+FULL_TEXT_THRESHOLD = 15_000
+MEDIUM_THRESHOLD = 150_000
+RAG_MEDIUM_LIMIT = 25
+RAG_LARGE_LIMIT = 15
+
+# in-memory store for current PDF text
+current_pdf_text = None
+
 
 def get_embedding(text):
     response = requests.post(
@@ -46,7 +54,9 @@ def get_embedding(text):
     return embedding
 
 
-def store_embeddings(chunks):
+def store_embeddings(chunks, full_text):
+    global current_pdf_text
+    current_pdf_text = full_text
 
     if not chunks:
         raise ValueError("No chunks to embed.")
@@ -95,17 +105,31 @@ def store_embeddings(chunks):
 
 
 def ask_question(question):
-    question_vector = get_embedding(question)
+    global current_pdf_text
 
-    result = qdrant_client.query_points(
-        collection_name=settings.QDRANT_COLLECTION_NAME,
-        query=question_vector,
-        limit=10
-    )
+    char_count = len(current_pdf_text) if current_pdf_text else 0
 
-    context = ""
-    for point in result.points:
-        context += point.payload["text"] + "\n"
+    if current_pdf_text and char_count <= FULL_TEXT_THRESHOLD:
+        context = current_pdf_text
+
+    else:
+        limit = (
+            RAG_MEDIUM_LIMIT
+            if char_count <= MEDIUM_THRESHOLD
+            else RAG_LARGE_LIMIT
+        )
+
+        question_vector = get_embedding(question)
+
+        result = qdrant_client.query_points(
+            collection_name=settings.QDRANT_COLLECTION_NAME,
+            query=question_vector,
+            limit=limit
+        )
+
+        context = ""
+        for point in result.points:
+            context += point.payload["text"] + "\n"
 
     llm = ChatGroq(
         model="llama-3.1-8b-instant",

@@ -37,7 +37,7 @@ async def upload_pdf(file: UploadFile = File(...)):
         )
 
     chunks = create_chunks(extracted_text)
-    vectors = store_embeddings(chunks)
+    vectors = store_embeddings(chunks, extracted_text)
 
     return {
         "message": "PDF stored successfully",

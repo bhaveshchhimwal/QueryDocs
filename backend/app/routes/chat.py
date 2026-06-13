@@ -1,16 +1,7 @@
 from fastapi import APIRouter
 
-
-from app.models.chat_model import (
-    ChatRequest
-)
-
-
-from app.services.rag_service import (
-    ask_question
-)
-
-
+from app.models.chat_model import ChatRequest
+from app.services.rag_service import ask_question
 
 router = APIRouter(
     prefix="/chat",
@@ -18,16 +9,10 @@ router = APIRouter(
 )
 
 
-
 @router.post("")
-def chat(
-    request: ChatRequest
-):
+def chat(request: ChatRequest):
 
-    answer = ask_question(
-        request.question
-    )
-
+    answer = ask_question(request.question)
 
     return {
         "answer": answer
